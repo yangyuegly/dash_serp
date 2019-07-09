@@ -5,14 +5,14 @@ from bs4 import BeautifulSoup
 from collections import defaultdict
 import os
 import json
-from dates_queries import datelist
+from dates_queries import datelist, datelist2
 import re
 import urllib.parse
 from urllib.parse import urlparse
 import cProfile
 
 
-root_dir = '/Users/yueyang/Downloads/noon_dates'
+root_dir = '/Users/yueyang/Downloads/June26-July5'
 # root_dir = '/Users/daphka/Desktop/SERPs to compare/emma-in-virginia'
 
 
@@ -38,7 +38,7 @@ def get_query_folders(root_dir, today):
     return query_folder_list
 
 
-def get_html_files(f_name):
+def get_html_files_for_candidates(f_name):
     """Returns a list of html pages/files from a given folder"""
     candidates = ['Joe Biden','Kamala Harris','Elizabeth Warren','Bernie Sanders']
     candidates_files = ['{}.html'.format(candidate) for candidate in candidates]
@@ -51,6 +51,10 @@ def get_html_files(f_name):
     print(results)
     return results
 
+def get_html_files(f_name):
+    """Returns a list of html pages/files from a given folder"""
+    files = sorted([os.path.join(f_name, f) for f in os.listdir(f_name) if os.path.isfile(os.path.join(f_name, f))]) #extra check if is file unnecessary
+    return files
 
 def get_recently_added_htmls(folder_list):
     return list(map(get_html_files, folder_list))
@@ -114,19 +118,19 @@ def get_results_from_page(files):
 def save_to_file(result, date):
     """Writes results (dict of titles and urls of each html page) to a json file."""
     try:
-        os.mkdir('/Users/yueyang/Downloads/2019-proccessed-json', mode=0o744)
+        os.mkdir('/Users/yueyang/Downloads/serp-626-75-json', mode=0o744)
     except FileExistsError:
         # print('Directory already exists.')
         pass
 
     filename = '{0}.json'.format(date) #datetime.today().strftime('%m-%d-%Y'), query)
-    with open(os.path.join('/Users/yueyang/Downloads/2019-proccessed-json', filename), 'w') as f:
+    with open(os.path.join('/Users/yueyang/Downloads/serp-626-75-json', filename), 'w') as f:
         json.dump(result, f, indent=4)
         print('Saved search results to {0}'.format(f.name))
 
 
 if __name__ == '__main__':
-    for each_date in datelist:
+    for each_date in datelist2:
          query_folders = get_query_folders(root_dir, each_date) #get the folders containing htmls
          htmls = get_recently_added_htmls(query_folders) #extracting html files from the folders 
          result_dict = list(map(get_results_from_page, htmls)) #parsing html files into dictionaries

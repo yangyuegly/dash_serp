@@ -15,7 +15,7 @@ def isHiddenFile(path):
 """
 def getDateListFromDir(directory):
     dateList = [each for each in os.listdir(directory) if not isHiddenFile(each)]
-    # print dateList
+    dateList = [d.strip('.json') for d in dateList]
     return sorted(dateList, key=lambda x: datetime.datetime.strptime(x, '%Y-%m-%d-%I%p'))
 
 
@@ -26,6 +26,7 @@ def get_only_12pm(datelist):
             noons.append(date)
     return noons
 
-all_dates = getDateListFromDir('/Users/yueyang/Downloads/noon_dates')
+all_dates = getDateListFromDir('/Users/yueyang/Downloads/2019-processed-json')
 datelist = get_only_12pm(all_dates)
+datelist2 = getDateListFromDir('/Users/yueyang/Downloads/June26-July5')
 print(datelist)
