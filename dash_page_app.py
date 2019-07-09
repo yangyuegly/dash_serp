@@ -9,9 +9,9 @@ from dash.dependencies import Input, Output
 import os
 import sqlite3
 import sys
+import dash_table.DataTable
 from dash_database import getUniqueURLs
 from dates_queries import datelist
-import dash_table.DataTable
 
 
 sys.path.append(os.path.join(os.path.abspath("/Users/yigezhu/Desktop/SummerResearch18/SERP-Obeservatory/scripts")))
@@ -44,7 +44,23 @@ df = run_query_withparms(url_by_query)
        
 
 
-def generate_table(dataframe, max_rows=10):
+def generate_table(df, max_rows=10):
+    df[' index'] = range(1, len(df) + 1)
+    return dash_table.DataTable(
+    id="-table",
+    columns=[
+        {'name': i, 'id': i, 'deletable': True} for i in sorted(df.columns)
+    ],
+    #data=df.to_dict('records'),
+    page_current=0,
+    page_size=100,
+    page_action='custom',
+
+    sort_action='custom',
+    sort_mode='single',
+    sort_by=[]
+)
+
     
     # html.Table(
     #     # Header
@@ -58,23 +74,6 @@ def generate_table(dataframe, max_rows=10):
     #     ,
     #     id = query + "-table",
     # ))
-    return dash_table.DataTable(
-        id='datatable-interactivity',
-        columns=[
-            {"name": i, "id": i, "deletable": True} for i in dataframe.columns
-        ],
-        data=dataframe.to_dict('records'),
-        editable=True,
-        filter_action="native",
-        sort_action="native",
-        sort_mode="multi",
-        row_selectable="multi",
-        row_deletable=True,
-        selected_rows=[],
-        page_action="native",
-        page_current= 0,
-        page_size= 10,
-    )
 
 
     
@@ -215,11 +214,26 @@ def generate_layout(query):
     # ], className="row", style = {'width': '100%'}),
     
     html.Br(), html.Br(),
-    html.Div(children = html.H6("The Position of Each Result in Selected Date")
-        ,style = {'fontFamily': 'Titillium Web'}),
-    html.Div(children=[generate_table(stories_df)], className = "row",id='datatable-interactivity-container'),
-    html.Br(), html.Br(),    
     
+    html.Div([
+        html.Div(children = html.H6("The Position of Each Result in Selected Date")
+        ,style = {'fontFamily': 'Titillium Web'}),  
+        #generate_table(stories_df)
+        ], className = "row"),
+    dash_table.DataTable(
+    id="-table",
+    columns=[
+        {'name': i, 'id': i, 'deletable': True} for i in sorted(df.columns)
+    ],
+    page_current=0,
+    page_size=20,
+    page_action='custom',
+    sort_action='custom',
+    sort_mode='single',
+    sort_by=[]
+),
+    html.Br(), html.Br(),    
+
     #commented 
     # html.Div([  
     #     html.Div(children = 
@@ -250,6 +264,32 @@ layout = generate_layout(query)
 #             generate_boxPlot(df, query)
 #         ], className="nine columns"),
 #     ]
+
+@app.callback(
+    Output("-table", 'data'),
+    [Input("-table", "page_current"),
+     Input("-table", "page_size"),
+     Input("-table", 'sort_by')])
+def update_table(page_current, page_size, sort_by):
+    print('reached')
+    stories_df = run_query_withparms(getUniqueURLs(query))
+   # stories_df = generate_hyperlinks(stories_df)
+    print(type(stories_df))
+    if len(sort_by):
+        dff = stories_df.sort_values(
+            sort_by[0]['column_id'],
+            ascending=sort_by[0]['direction'] == 'asc',
+            inplace=False
+        )
+    else:
+        # No sort is applied
+        dff = stories_df
+    print(dff.iloc[
+        page_current*page_size:(page_current+ 1)*page_size
+    ].to_dict('records'))
+    return dff.iloc[
+        page_current*page_size:(page_current+ 1)*page_size
+    ].to_dict('records')
 
 @app.callback(Output('output-container-date-picker-range', 'children'),
     [Input('my-date-picker-range', 'start_date'),
@@ -300,32 +340,32 @@ def update_output(start_date, end_date):
 #             )]
 #         }
 #         return figure
-#commented
-@app.callback(Output(query + '-table', 'children'),
-    [Input('my-date-picker-range', 'start_date'),
-    Input('my-date-picker-range', 'end_date')])
+# #commented
+# @app.callback(Output(query + '-table', 'children'),
+#     [Input('my-date-picker-range', 'start_date'),
+#     Input('my-date-picker-range', 'end_date')])
       
-def update_graph_table(start_date, end_date):
-    print('reached')
-    if start_date is not None and end_date is not None:
-        start_date = dt.strptime(start_date, '%Y-%m-%d')
-        end_date = dt.strptime(end_date, '%Y-%m-%d')
-        print(end_date)
-        dateListSelected = pd.date_range(start=start_date, end=end_date)
-        startDate = dateListSelected[0]
-        # topNURL = getTopNURL(query, startDate,10)
-        # if topNURL != None:
-        #     topNList = getPosition(dateListSelected, topNURL,query)
-        #     df = createDataFrameOverTime(topNList, dateListSelected)
-        dateListSelected_str = [c.strftime('%Y-%m-%d') for c in dateListSelected]
-        print(dateListSelected_str)
-        print('reached')
-        stories_df = run_query_withparms(url_by_query)
-        stories_df = generate_hyperlinks(stories_df)
-        print(url_by_query)
-        return generate_table(stories_df)
-    else:
-        return generate_table(df)
+# def update_graph_table(start_date, end_date):
+#     print('reached')
+#     if start_date is not None and end_date is not None:
+#         start_date = dt.strptime(start_date, '%Y-%m-%d')
+#         end_date = dt.strptime(end_date, '%Y-%m-%d')
+#         print(end_date)
+#         dateListSelected = pd.date_range(start=start_date, end=end_date)
+#         startDate = dateListSelected[0]
+#         # topNURL = getTopNURL(query, startDate,10)
+#         # if topNURL != None:
+#         #     topNList = getPosition(dateListSelected, topNURL,query)
+#         #     df = createDataFrameOverTime(topNList, dateListSelected)
+#         dateListSelected_str = [c.strftime('%Y-%m-%d') for c in dateListSelected]
+#         print(dateListSelected_str)
+#         print('reached')
+#         stories_df = run_query_withparms(url_by_query)
+#         stories_df = generate_hyperlinks(stories_df)
+#         print(url_by_query)
+#         return generate_table(stories_df)
+#     else:
+#         return generate_table(stories_df)
 #commented
 # @app.callback(
 #     Output('change-in-ranking-graph', 'children'),
