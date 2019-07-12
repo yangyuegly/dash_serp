@@ -11,7 +11,7 @@ sys.path.append(os.path.join(os.path.abspath("/Users/yigezhu/Desktop/SummerResea
 #import UniqueLinks
 #import Top10
 import json
-
+from dates_queries import querylist
 
 # Since we're adding callbacks to elements that don't exist in the app.layout,
 # Dash will raise an exception to warn us that we might be
@@ -21,7 +21,9 @@ import json
 # overview.config.suppress_callback_exceptions = True
 
 news_topics =  ['Bernie Sanders','Elizabeth Warren','Joe Biden','Kamala Harris']
-focus_group_topics = []
+focus_group_topics = querylist
+opinion_topics =[]
+question_topics = []
 
 path = '/Users/yigezhu/Desktop/SummerResearch18/SERP-Obeservatory/manually_added-results'
 
@@ -82,7 +84,7 @@ series of queries of different kinds on a daily basis.",
     
     html.Br(),
     html.Div(
-        [html.H6("Long-standing Topics"),]+
+        [html.H6("Focus Group Topics"),]+
         [html.Div([
             dcc.Link(query, href = '/apps/page_app/'+ query), 
             html.Br()
@@ -101,29 +103,29 @@ series of queries of different kinds on a daily basis.",
         
         className = 'four columns'),
         
-        # html.Div(
-        # [html.H6("Topics in the News")] +
-        # [html.Div([
-        #     dcc.Link(query, href = '/apps/page_app/'+ query), 
-        #     html.Br()
-        #     ]) for query in news_topics],
+        html.Div(
+        [html.H6("Topics in the News")] +
+        [html.Div([
+            dcc.Link(query, href = '/apps/page_app/'+ query), 
+            html.Br()
+            ]) for query in news_topics],
         
-        # className = 'four columns'),
+        className = 'four columns'),
         
-        # html.Div(
-        # [html.H6("Opinion-based Queries")] +
-        # [html.Div([
-        #     dcc.Link(query, href = '/apps/page_app/'+ query), 
-        #     html.Br()
-        #     ]) for query in opinion_topics]+ 
+        html.Div(
+        [html.H6("Opinion-based Queries")] +
+        [html.Div([
+            dcc.Link(query, href = '/apps/page_app/'+ query), 
+            html.Br()
+            ]) for query in opinion_topics]+ 
             
-        # [html.Br(), html.H6("Question-based Queries")] +
-        # [html.Div([
-        #     dcc.Link(query, href = '/apps/page_app/'+ query), 
-        #     html.Br()
-        #     ]) for query in question_topics],
+        [html.Br(), html.H6("Question-based Queries")] +
+        [html.Div([
+            dcc.Link(query, href = '/apps/page_app/'+ query), 
+            html.Br()
+            ]) for query in question_topics],
         
-        # className = 'four columns')
+        className = 'four columns')
     ], className = 'row', style = {'text-align': 'center', 'fontFamily': 'Titillium Web'}),
     
     # html.Div([

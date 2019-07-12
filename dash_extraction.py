@@ -109,7 +109,7 @@ def get_results_from_page(files):
             soup = BeautifulSoup(html, "html5lib")
             site_lst = find_rc(soup)
             print(f)
-            result_dict['{}'.format(i)] = site_lst
+            result_dict['{}'.format(str(f).replace('.html',''))] = site_lst
             
 
     return result_dict
@@ -136,7 +136,7 @@ if __name__ == '__main__':
          result_dict = list(map(get_results_from_page, htmls)) #parsing html files into dictionaries
          if not result_dict:
              print("Empty result, {0}, won't be written to json file.".format(result_dict))
-         else:
+         else: 
              save_to_file(result_dict[0], each_date)
 
     #cProfile.run('re.compile("foo|bar")', 'restats')

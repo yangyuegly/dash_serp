@@ -10,8 +10,8 @@ import os
 import sqlite3
 import sys
 import dash_table.DataTable
-from dash_database import getUniqueURLs
-from dates_queries import datelist
+from dash_database import getUniqueURLs, getUniqueDomains,getUniqueDomains2
+from dates_queries import datelist, querylist
 
 
 sys.path.append(os.path.join(os.path.abspath("/Users/yigezhu/Desktop/SummerResearch18/SERP-Obeservatory/scripts")))
@@ -26,23 +26,22 @@ from app import app
     
 path = '/Users/yigezhu/Desktop/SummerResearch18/SERP-Obeservatory/SERP-results'
 query = " "
+default_df = pd.DataFrame()
 
 #-----------sql commands---------
 url_by_query = getUniqueURLs(query) 
 
 startDate = datelist[1]
 
-def run_query_withparms(sql):
-    conn = sqlite3.connect('dash_serp_database.db')
-    df = pd.read_sql_query(sql , conn)
+def run_query_withparms(sql,connect):
+    df = pd.read_sql_query(sql , connect)
     return df    
-
 #---dataframes----------
-df = run_query_withparms(url_by_query)
+#df = run_query_withparms(url_by_query,conn1)
+#df2 = run_query_withparms(url_by_query,conn2)
 
 
        
-
 
 def generate_table(df, max_rows=10):
     df[' index'] = range(1, len(df) + 1)
@@ -55,7 +54,6 @@ def generate_table(df, max_rows=10):
     page_current=0,
     page_size=100,
     page_action='custom',
-
     sort_action='custom',
     sort_mode='single',
     sort_by=[]
@@ -163,21 +161,23 @@ def generate_hyperlinks(df):
     return df
 
 #--------------DASH LAYOUT---------------
-def generate_layout(query):
-    stories_df = run_query_withparms(getUniqueURLs(query))
-    stories_df = generate_hyperlinks(stories_df)
+def generate_layout(query,connect):
+    domain_df = getUniqueDomains(query)
+    stories_df = run_query_withparms(getUniqueURLs(query),connect)
+#    stories_df = generate_hyperlinks(stories_df)
     layout = html.Div([
     html.Div([
         html.Div(id='individual-page-content'),
         html.Br(),
         dcc.Link('Go back to home', href='/overview_app'),
-    
     ]),
-    
-    
     html.Div([
         html.H2(id = 'page-title', children= query, className = "twelve columns"
-        , style = {'fontFamily': 'Titillium Web', 'text-align': 'center'})], 
+        , style = {'fontFamily': 'Titillium Web', 'text-align': 'center'}),
+
+        html.H5(id = 'page-stats', children= query, className = "twelve columns"
+        , style = {'fontFamily': 'Titillium Web', 'text-align': 'center'})
+        ], 
         className = "row"),
         
     html.Br(), html.Br(),
@@ -221,16 +221,53 @@ def generate_layout(query):
         #generate_table(stories_df)
         ], className = "row"),
     dash_table.DataTable(
+    id="domain-table",
+    columns=[
+        {'name': i, 'id': i, 'deletable': True} for i in sorted(domain_df.columns)
+        if i!='id'
+    ],
+    page_current=0,
+    page_size=5,
+    page_action='custom',
+    sort_action='custom',
+    sort_mode='single',
+    sort_by=[],
+    editable=True,
+    row_selectable="multi",
+    filter_action="native",
+    row_deletable=True,
+    selected_rows=[],
+    style_cell={
+        'whiteSpace': 'no-wrap',
+        'overflow': 'scroll',
+        'textOverflow': 'ellipsis',
+        'maxWidth': 200,
+    },
+    style_table={'overflowX': 'scroll'}
+    
+),
+html.Div(id='datatable-row-ids-container'),
+
+ dash_table.DataTable(
     id="-table",
     columns=[
-        {'name': i, 'id': i, 'deletable': True} for i in sorted(df.columns)
+        {'name': i, 'id': i, 'deletable': True} for i in sorted(stories_df.columns)
     ],
     page_current=0,
     page_size=20,
     page_action='custom',
     sort_action='custom',
     sort_mode='single',
-    sort_by=[]
+    sort_by=[],
+    
+    style_cell={
+        'whiteSpace': 'no-wrap',
+        'overflow': 'scroll',
+        'textOverflow': 'ellipsis',
+        'maxWidth': 400,
+    },
+    style_table={'overflowX': 'scroll'}
+    
 ),
     html.Br(), html.Br(),    
 
@@ -246,7 +283,6 @@ def generate_layout(query):
     ])
     return layout
 
-layout = generate_layout(query)
 # #---------------Interactive Callbacks--------------
 # @app.callback(Output('change-in-ranking-graph', 'children'),
 #               [Input('radio-items', 'value')])
@@ -271,22 +307,60 @@ layout = generate_layout(query)
      Input("-table", "page_size"),
      Input("-table", 'sort_by')])
 def update_table(page_current, page_size, sort_by):
-    print('reached')
-    stories_df = run_query_withparms(getUniqueURLs(query))
+    if query in querylist:
+            connect = sqlite3.connect('focus_database.db')
+    else:
+            connect = sqlite3.connect('dash_serp_database.db')
+    stories_df = run_query_withparms(getUniqueURLs(query),connect)
    # stories_df = generate_hyperlinks(stories_df)
-    print(type(stories_df))
     if len(sort_by):
         dff = stories_df.sort_values(
             sort_by[0]['column_id'],
             ascending=sort_by[0]['direction'] == 'asc',
             inplace=False
         )
+
     else:
         # No sort is applied
         dff = stories_df
-    print(dff.iloc[
+    # print(dff.iloc[
+    #     page_current*page_size:(page_current+ 1)*page_size
+    # ].to_dict('records'))
+    return dff.iloc[
         page_current*page_size:(page_current+ 1)*page_size
-    ].to_dict('records'))
+    ].to_dict('records')
+
+@app.callback(
+    Output("domain-table", 'data'),
+    [Input("domain-table", "page_current"),
+     Input("domain-table", "page_size"),
+     Input("domain-table", 'sort_by')])
+def update_table(page_current, page_size, sort_by):
+    if query in querylist:
+        domain_df = getUniqueDomains2(query)
+    else:
+        domain_df = getUniqueDomains(query)
+   # stories_df = generate_hyperlinks(stories_df)
+    if len(sort_by):
+        dff = domain_df.sort_values(
+            sort_by[0]['column_id'],
+            ascending=sort_by[0]['direction'] == 'asc',
+            inplace=False
+        )
+        default_df = dff
+        default_df['id']=default_df['domain']
+        default_df.set_index('id', inplace=True, drop=False)
+
+    else:
+        # No sort is applied
+        dff = domain_df
+        default_df = dff
+        default_df['id']=default_df['domain']
+        default_df.set_index('id', inplace=True, drop=False)
+
+    # print(dff.iloc[
+    #     page_current*page_size:(page_current+ 1)*page_size
+    # ].to_dict('records'))
     return dff.iloc[
         page_current*page_size:(page_current+ 1)*page_size
     ].to_dict('records')
@@ -298,7 +372,7 @@ def update_table(page_current, page_size, sort_by):
 def update_output(start_date, end_date):
     string_prefix = 'Please pick a time range for the data you want to see.\n '
     if start_date is not None:
-        print(start_date)
+        #print(start_date)
         start_date = dt.strptime(start_date, '%Y-%m-%d')
         start_date_string = start_date.strftime('%B %d, %Y')
         string_prefix = 'You have selected ' + 'start date: ' + start_date_string + ' | '
@@ -310,6 +384,67 @@ def update_output(start_date, end_date):
         return 'Select a date to see it displayed here'
     else:
         return string_prefix
+
+@app.callback(
+    Output('datatable-row-ids-container', 'children'),
+    [Input('domain-table', 'derived_virtual_row_ids'),
+     Input('domain-table', 'selected_row_ids'),
+     Input('domain-table', 'active_cell')])
+def update_graphs(row_ids, selected_row_ids, active_cell):
+    # When the table is first rendered, `derived_virtual_data` and
+    # `derived_virtual_selected_rows` will be `None`. This is due to an
+    # idiosyncracy in Dash (unsupplied properties are always None and Dash
+    # calls the dependent callbacks when the component is first rendered).
+    # So, if `rows` is `None`, then the component was just rendered
+    # and its value will be the same as the component's dataframe.
+    # Instead of setting `None` in here, you could also set
+    # `derived_virtual_data=df.to_rows('dict')` when you initialize
+    # the component.
+    default_df['id']=default_df['domain']
+    selected_id_set = set(selected_row_ids or [])
+
+    if row_ids is None:
+        dff = default_df
+        # pandas Series works enough like a list for this to be OK
+        row_ids = default_df['id']
+    else:
+        dff = default_df.loc[row_ids]
+
+    active_row_id = active_cell['row_id'] if active_cell else None
+
+    colors = ['#FF69B4' if id == active_row_id
+              else '#7FDBFF' if id in selected_id_set
+              else '#0074D9'
+              for id in row_ids]
+
+    return [
+        dcc.Graph(
+            id=column + '--row-ids',
+            figure={
+                'data': [
+                    {
+                        'x': dff['domain'],
+                        'y': dff[column],
+                        'type': 'bar',
+                        'marker': {'color': colors},
+                    }
+                ],
+                'layout': {
+                    'xaxis': {'automargin': True},
+                    'yaxis': {
+                        'automargin': True,
+                        'title': {'text': column}
+                    },
+                    'height': 250,
+                    'margin': {'t': 10, 'l': 10, 'r': 10},
+                },
+            },
+        )
+        # check if column exists - user may have deleted it
+        # If `column.deletable=False`, then you don't
+        # need to do this check.
+        for column in ['pop', 'lifeExp', 'gdpPercap'] if column in dff
+    ]
 
 # @app.callback(
 #     dash.dependencies.Output(query + '-table', 'figure'),
